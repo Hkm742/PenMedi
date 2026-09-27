@@ -1,35 +1,259 @@
-@import './base.css';
+:root {
+  /* Neutral Canvas */
+  --pm-bg-canvas: #f8fafc;
+  --pm-bg-card: #ffffff;
+  --pm-bg-subtle: #f1f5f9;
+  --pm-border: #e2e8f0;
+  --pm-border-focus: #0284c7;
+
+  /* Typography */
+  --pm-text-primary: #0f172a;
+  --pm-text-secondary: #475569;
+  --pm-text-muted: #64748b;
+  --pm-text-inverted: #ffffff;
+
+  /* Primary Clinical Accent */
+  --pm-primary: #0284c7;
+  --pm-primary-hover: #0369a1;
+  --pm-primary-light: #e0f2fe;
+  --pm-teal: #0d9488;
+  --pm-teal-light: #ccfbf1;
+
+  /* Flat Semantic Alerts */
+  --pm-critical-bg: #fee2e2;
+  --pm-critical-border: #ef4444;
+  --pm-critical-text: #991b1b;
+
+  --pm-warning-bg: #fef3c7;
+  --pm-warning-border: #f59e0b;
+  --pm-warning-text: #92400e;
+
+  --pm-info-bg: #dbeafe;
+  --pm-info-border: #3b82f6;
+  --pm-info-text: #1e40af;
+
+  --pm-success-bg: #d1fae5;
+  --pm-success-border: #10b981;
+  --pm-success-text: #065f46;
+
+  /* Dimensions & Spacing */
+  --pm-radius: 4px; /* Crisp flat edges */
+  --pm-header-height: 56px;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--pm-bg-canvas);
+  color: var(--pm-text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-a,
-.green {
+/* Typography Utilities */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--pm-text-primary);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+a {
+  color: var(--pm-primary);
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+  transition: color 0.15s ease;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+a:hover {
+  color: var(--pm-primary-hover);
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+/* Flat UI Clinical Card */
+.pm-card {
+  background: var(--pm-bg-card);
+  border: 1px solid var(--pm-border);
+  border-radius: var(--pm-radius);
+  padding: 1.25rem;
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+.pm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.875rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--pm-border);
+}
+
+/* Flat Badges & Chips */
+.pm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--pm-radius);
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.pm-badge-critical {
+  background-color: var(--pm-critical-bg);
+  border-color: var(--pm-critical-border);
+  color: var(--pm-critical-text);
+}
+
+.pm-badge-warning {
+  background-color: var(--pm-warning-bg);
+  border-color: var(--pm-warning-border);
+  color: var(--pm-warning-text);
+}
+
+.pm-badge-info {
+  background-color: var(--pm-info-bg);
+  border-color: var(--pm-info-border);
+  color: var(--pm-info-text);
+}
+
+.pm-badge-success {
+  background-color: var(--pm-success-bg);
+  border-color: var(--pm-success-border);
+  color: var(--pm-success-text);
+}
+
+.pm-badge-neutral {
+  background-color: var(--pm-bg-subtle);
+  border-color: var(--pm-border);
+  color: var(--pm-text-secondary);
+}
+
+/* Alert Banners */
+.pm-alert-banner {
+  padding: 1rem;
+  border-radius: var(--pm-radius);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-left: 4px solid transparent;
+}
+
+.pm-alert-banner.critical {
+  background-color: var(--pm-critical-bg);
+  border-left-color: var(--pm-critical-border);
+  color: var(--pm-critical-text);
+}
+
+.pm-alert-banner.warning {
+  background-color: var(--pm-warning-bg);
+  border-left-color: var(--pm-warning-border);
+  color: var(--pm-warning-text);
+}
+
+.pm-alert-banner.info {
+  background-color: var(--pm-info-bg);
+  border-left-color: var(--pm-info-border);
+  color: var(--pm-info-text);
+}
+
+/* Flat Clinical Buttons */
+.pm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--pm-radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.pm-btn-primary {
+  background-color: var(--pm-primary);
+  color: #ffffff;
+  border-color: var(--pm-primary);
+}
+
+.pm-btn-primary:hover {
+  background-color: var(--pm-primary-hover);
+  border-color: var(--pm-primary-hover);
+}
+
+.pm-btn-secondary {
+  background-color: #ffffff;
+  color: var(--pm-text-secondary);
+  border-color: var(--pm-border);
+}
+
+.pm-btn-secondary:hover {
+  background-color: var(--pm-bg-subtle);
+  color: var(--pm-text-primary);
+}
+
+.pm-btn-danger {
+  background-color: #ffffff;
+  color: var(--pm-critical-text);
+  border-color: var(--pm-critical-border);
+}
+
+.pm-btn-danger:hover {
+  background-color: var(--pm-critical-bg);
+}
+
+.pm-btn-sm {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+/* Flat Inputs */
+.pm-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--pm-text-primary);
+  background-color: #ffffff;
+  border: 1px solid var(--pm-border);
+  border-radius: var(--pm-radius);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.pm-input:focus {
+  border-color: var(--pm-primary);
+}
+
+/* Custom Scrollbar for Clinical Data Tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--pm-bg-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
