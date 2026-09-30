@@ -6,7 +6,7 @@
 > **Core Clinical Directive**: PM-CDSS is strictly a **decision-support tool** to assist qualified clinicians; it **never** autonomously diagnoses or prescribes.
 
 ---
-
+ 
 ## 1. System Architecture
 
 ```text
@@ -133,3 +133,37 @@ docker compose up -d --build
 - **PostgreSQL**: Internal container network persistence on named volume `pm_cdss_pgdata`.
 - **FastAPI Backend**: Multi-stage Python 3.12 slim runtime on port 8000.
 - **Frontend**: Multi-stage Bun build served via Nginx on port 3000 with gzip compression and reverse proxy routing.
+
+---
+
+## 6. Railway + Neon Deployment
+
+Create a Neon PostgreSQL project and use its **pooled** connection string for the application. Keep the connection string private; do not commit it or add it to the frontend service.
+
+Create two Railway services from this repository, both using the Dockerfile builder:
+
+| Service | Root Directory | Dockerfile | Health Check Path |
+| :--- | :--- | :--- | :--- |
+| Backend | `/Backend` | `Dockerfile` | `/health` |
+| Frontend | `/Frontend` | `Dockerfile` | `/` |
+
+Set these variables on the Railway **backend** service:
+
+| Variable | Value |
+| :--- | :--- |
+| `DATABASE_URL` | Neon pooled connection string, including its SSL query parameters |
+| `JWT_SECRET_KEY` | A newly generated, high-entropy secret |
+| `ENVIRONMENT` | `production` |
+| `CORS_ORIGINS` | The exact public frontend origin, for example `https://your-frontend.up.railway.app` |
+
+The backend normalizes Neon/Railway PostgreSQL URLs for its async driver, translates Neon `sslmode` to asyncpg's SSL option, and runs Alembic migrations before starting the API. Railway supplies `PORT` at runtime; `/health` can be used for the service health check.
+
+Set this variable on the Railway **frontend** service:
+
+| Variable | Value |
+| :--- | :--- |
+| `VITE_API_URL` | Backend public origin plus `/api/v1`, for example `https://your-backend.up.railway.app/api/v1` |
+
+`VITE_API_URL` is embedded during the frontend image build, so set it before deploying or redeploy after changing it. Do not include a trailing slash. The frontend container listens on Railway's assigned `PORT`.
+
+After the first deployment, create the initial application users using the backend seed script only if the included demo accounts are appropriate for your environment. Replace demo credentials and rotate any secrets before real use.

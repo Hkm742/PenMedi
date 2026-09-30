@@ -1,7 +1,7 @@
-import os
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -20,6 +20,24 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     DATABASE_URL: str = "postgresql+asyncpg://pm_user:pm_password@localhost:5432/pm_cdss"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            value = "postgresql://" + value.removeprefix("postgres://")
+
+        url = make_url(value)
+        if url.drivername in {"postgres", "postgresql"}:
+            url = url.set(drivername="postgresql+asyncpg")
+
+        query = dict(url.query)
+        sslmode = query.pop("sslmode", None)
+        query.pop("channel_binding", None)
+        if sslmode and "ssl" not in query:
+            query["ssl"] = sslmode
+
+        return url.set(query=query).render_as_string(hide_password=False)
 
     # JWT Settings
     JWT_SECRET_KEY: str = "penmed-cdss-super-secure-production-ready-jwt-key-cavendish-2026"
