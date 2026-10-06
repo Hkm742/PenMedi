@@ -1,0 +1,228 @@
+================================================================================
+  PM-CDSS (Personalized Medicine Clinical Decision Support System)
+  DEPLOYMENT & LOCAL DEVELOPMENT GUIDE
+================================================================================
+
+This guide covers:
+  1. Local Development (using localized PostgreSQL via Docker Compose or native)
+  2. Neon Cloud PostgreSQL Setup (obtaining connection string for production)
+  3. Render Cloud Deployment (Full-System Docker / Blueprint deployment)
+  4. Database Migrations & Initial Seed Data
+  5. Default Clinical Demo Credentials
+  6. Troubleshooting & Diagnostics
+
+================================================================================
+1. ARCHITECTURE OVERVIEW
+================================================================================
+
+- Backend: FastAPI (Python 3.12, uv, SQLAlchemy 2.0 Async, Alembic migrations)
+- Frontend: Vue 3 + Vite + PrimeVue + Pinia + TailwindCSS (Nginx in production)
+- Database (Development): Local PostgreSQL 16 container (pm_cdss_postgres)
+- Database (Production Deployment): Neon Serverless PostgreSQL Cloud Database
+
+================================================================================
+2. LOCAL DEVELOPMENT WORKFLOW (LOCALIZED POSTGRESQL)
+================================================================================
+
+For local development, a localized PostgreSQL instance is used so you don't
+need cloud connectivity.
+
+--------------------------------------------------------------------------------
+Option A: Full-Stack Docker Compose (Recommended)
+--------------------------------------------------------------------------------
+1. Ensure Docker & Docker Compose are running.
+2. In the project root, start all three services (PostgreSQL, Backend, Frontend):
+     docker compose up --build
+
+   - The backend will automatically apply database migrations and seed default
+     clinicians/rules (via AUTO_SEED=true in docker-compose.yml).
+   - Frontend is accessible at: http://localhost:3000
+   - Backend API is accessible at: http://localhost:8000
+   - Swagger Documentation: http://localhost:8000/api/v1/docs
+   - Health check: http://localhost:8000/health
+
+3. To stop the containers:
+     docker compose down
+
+--------------------------------------------------------------------------------
+Option B: Native Local Development (uv + bun + Docker Postgres)
+--------------------------------------------------------------------------------
+1. Start only the local PostgreSQL container:
+     docker compose up postgres -d
+
+2. Backend setup:
+     cd Backend
+     uv sync
+     # Apply database migrations
+     uv run alembic upgrade head
+     # Seed initial data
+     uv run python -m app.scripts.seed
+     # Start dev server with reload
+     uv run uvicorn app.main:app --reload --port 8000
+
+3. Frontend setup (in a separate terminal):
+     cd Frontend
+     bun install
+     bun run dev
+     # Access at http://localhost:5173
+
+================================================================================
+3. NEON POSTGRESQL SETUP (PRODUCTION DATABASE)
+================================================================================
+
+For deployment on Render, the system connects to a managed Neon cloud database.
+
+Step-by-Step Neon Setup:
+1. Go to https://neon.tech and sign up / log in.
+2. Click "New Project":
+   - Name: `penmed-cdss-db` (or any preferred name)
+   - Postgres Version: 16 (default)
+   - Region: Choose the region closest to your Render services (e.g. US East / Frankfurt)
+3. Once created, navigate to the "Dashboard" / "Connection Details".
+4. Select "Connection string" -> Select "Postgres" (or "Pooled connection").
+5. Copy the connection string. It will look like:
+   postgresql://neondb_owner:npg_AbCd1234@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+
+Note on URL format:
+- The PM-CDSS backend configuration automatically normalizes `postgres://` or
+  `postgresql://` into `postgresql+asyncpg://` so you can paste the exact
+  connection string from Neon into Render without manual regex adjustments.
+
+================================================================================
+4. DEPLOYING TO RENDER (FULL-SYSTEM)
+================================================================================
+
+You can deploy the complete system to Render using either the Automated
+Blueprint (recommended) or the Manual Web Services method.
+
+--------------------------------------------------------------------------------
+Method 1: 1-Click Render Blueprint (render.yaml) - RECOMMENDED
+--------------------------------------------------------------------------------
+1. Push your repository to GitHub / GitLab.
+2. Log into https://dashboard.render.com.
+3. Click "New +" -> Select "Blueprint".
+4. Connect your PM-CDSS repository.
+5. Render will detect the `render.yaml` file in the root directory.
+6. Render will prompt you for the required environment variables:
+   - DATABASE_URL: Paste your Neon DB connection string
+   - CORS_ORIGINS: Enter your frontend URL (e.g. https://penmed-frontend.onrender.com)
+   - VITE_API_URL: Enter your backend URL + /api/v1 (e.g. https://penmed-backend.onrender.com/api/v1)
+7. Click "Apply Blueprint". Render will automatically build and deploy:
+   - `penmed-backend` (Docker Web Service)
+   - `penmed-frontend` (Static Site with SPA rewrites)
+
+--------------------------------------------------------------------------------
+Method 2: Manual Render Dashboard Setup
+--------------------------------------------------------------------------------
+
+STEP 1: Deploy Backend Web Service
+1. In Render Dashboard, click "New +" -> "Web Service".
+2. Connect your Git repository.
+3. Configure Backend:
+   - Name: `penmed-backend`
+   - Region: Same region as your Neon database
+   - Root Directory: `Backend` (or leave empty if using context)
+   - Runtime: `Docker`
+   - Docker Command / Dockerfile Path: `./Dockerfile` (or `Backend/Dockerfile`)
+   - Plan: Free (or Starter)
+   - Health Check Path: `/health`
+4. Add Environment Variables in Render:
+   - DATABASE_URL: <Your Neon DB connection string>
+   - JWT_SECRET_KEY: <A strong random 64-char string>
+   - JWT_ALGORITHM: HS256
+   - ACCESS_TOKEN_EXPIRE_MINUTES: 120
+   - REFRESH_TOKEN_EXPIRE_DAYS: 7
+   - ENVIRONMENT: production
+   - AUTO_SEED: true
+   - CORS_ORIGINS: https://penmed-frontend.onrender.com,http://localhost:3000
+5. Click "Deploy Web Service".
+6. Copy the deployed backend URL (e.g. `https://penmed-backend.onrender.com`).
+
+STEP 2: Deploy Frontend Static Site (or Docker Web Service)
+1. In Render Dashboard, click "New +" -> "Static Site".
+2. Connect your Git repository.
+3. Configure Frontend:
+   - Name: `penmed-frontend`
+   - Root Directory: `Frontend`
+   - Build Command: `bun install && bun run build-only` (or `npm install && npm run build-only`)
+   - Publish Directory: `dist`
+4. Add Rewrite Rule (under "Redirects/Rewrites"):
+   - Source: `/*`
+   - Destination: `/index.html`
+   - Action: `Rewrite`
+5. Add Environment Variable:
+   - VITE_API_URL: `https://penmed-backend.onrender.com/api/v1`
+6. Click "Deploy Static Site".
+7. Copy the deployed frontend URL (e.g. `https://penmed-frontend.onrender.com`).
+8. Return to `penmed-backend` -> Environment -> ensure `CORS_ORIGINS` includes your new frontend URL.
+
+================================================================================
+5. DATABASE MIGRATIONS & SEEDING ON NEON
+================================================================================
+
+Automatic (Default):
+- When the backend container starts on Render, `entrypoint.sh` runs:
+    1. `alembic upgrade head` (automatically creates all clinical tables)
+    2. `python -m app.scripts.seed` (if AUTO_SEED=true, populates default data)
+
+Manual Migration (from your local machine against Neon):
+If you ever want to run migrations manually against Neon:
+  cd Backend
+  DATABASE_URL="your-neon-connection-string" uv run alembic upgrade head
+  DATABASE_URL="your-neon-connection-string" uv run python -m app.scripts.seed
+
+================================================================================
+6. DEFAULT CLINICAL DEMO CREDENTIALS
+================================================================================
+
+Once seeded, you can log in with the following institutional accounts:
+
+Role                Email                     Password
+--------------------------------------------------------------------------------
+1. Administrator    admin@lmth.gov.zm         AdminPass123!
+2. Clinician        clinician@lmth.gov.zm     ClinicianPass123!
+3. Lab Officer      lab@lmth.gov.zm           LabPass123!
+4. Auditor          auditor@lmth.gov.zm       AuditorPass123!
+
+================================================================================
+7. VERIFICATION & HEALTH CHECKS
+================================================================================
+
+1. Check Backend Health:
+   GET https://penmed-backend.onrender.com/health
+   Response:
+   {
+     "status": "online",
+     "institution": "Levy Mwanawasa Teaching Hospital, Zambia",
+     "database": "connected",
+     "timestamp": "2026-...",
+     "version": "1.0.0"
+   }
+
+2. Check Interactive API Documentation:
+   GET https://penmed-backend.onrender.com/api/v1/docs
+
+3. Check Frontend Application:
+   Open https://penmed-frontend.onrender.com in a web browser.
+   Log in with `clinician@lmth.gov.zm` / `ClinicianPass123!`.
+
+================================================================================
+8. TROUBLESHOOTING & COMMON PITFALLS
+================================================================================
+
+1. "Network Error" or "CORS Error" on Login:
+   - Verify that `CORS_ORIGINS` in your Backend Render environment variables
+     includes the exact Frontend URL (e.g. `https://penmed-frontend.onrender.com`).
+   - Note: Do NOT add a trailing slash to URLs in CORS_ORIGINS.
+
+2. "Database disconnected" on /health:
+   - Verify your `DATABASE_URL` in Render. Ensure the password has no unencoded
+     special characters (URL encode characters like `@` as `%40` if in password).
+   - Ensure `?sslmode=require` is present in the Neon connection string.
+
+3. Render Free Tier Cold Starts:
+   - Render's free tier web services spin down after 15 minutes of inactivity.
+   - The first request after a sleep period may take 30-50 seconds to boot up.
+   - The health check at `/health` can be used by an uptime monitor (e.g. UptimeRobot,
+     CronJob, or Cron-job.org) to keep the backend warm if needed.
+================================================================================

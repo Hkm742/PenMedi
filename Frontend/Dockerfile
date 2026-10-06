@@ -3,6 +3,10 @@ FROM oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
+# Build arguments for Vite environment configuration
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy dependency specifications
 COPY package.json bun.lock* ./
 

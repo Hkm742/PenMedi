@@ -35,6 +35,19 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_database_url(cls, v: Union[str, None]) -> str:
+        if not v or not isinstance(v, str) or not v.strip():
+            return "postgresql+asyncpg://pm_user:pm_password@localhost:5432/pm_cdss"
+        url_str = v.strip()
+        # Neon / cloud providers often give postgres:// or postgresql://
+        if url_str.startswith("postgres://"):
+            url_str = url_str.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url_str.startswith("postgresql://") and not url_str.startswith("postgresql+asyncpg://"):
+            url_str = url_str.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url_str
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

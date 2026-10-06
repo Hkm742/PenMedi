@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import text
 from app.api.v1 import api_router
 from app.core.config import settings
@@ -28,6 +28,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/docs", include_in_schema=False)
+async def docs_redirect():
+    return RedirectResponse(url=f"{settings.API_V1_STR}/docs")
+
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_redirect():
+    return RedirectResponse(url=f"{settings.API_V1_STR}/redoc")
 
 
 @app.get("/health", tags=["System Health"])
